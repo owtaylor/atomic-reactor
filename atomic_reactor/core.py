@@ -224,7 +224,7 @@ class DockerTasker(LastLogger):
         """
         super(DockerTasker, self).__init__(**kwargs)
 
-        client_kwargs = {}
+        client_kwargs = {'timeout': timeout}
         if base_url:
             client_kwargs['base_url'] = base_url
         elif os.environ.get('DOCKER_CONNECTION'):
@@ -233,7 +233,12 @@ class DockerTasker(LastLogger):
         if hasattr(docker, 'AutoVersionClient'):
             client_kwargs['version'] = 'auto'
 
-        self.d = docker.Client(timeout=timeout, **client_kwargs)
+        try:
+            # docker-py 1.x
+            self.d = docker.Client(**client_kwargs)
+        except AttributeError:
+            # docker-py 2.x
+            self.d = docker.APIClient(**client_kwargs)
 
     def build_image_from_path(self, path, image, stream=False, use_cache=False, remove_im=True):
         """

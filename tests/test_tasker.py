@@ -333,3 +333,24 @@ def test_timeout(timeout, expected_timeout):
         kwargs['timeout'] = timeout
 
     t = DockerTasker(**kwargs)
+
+
+def test_docker2():
+    class MockClient(object):
+        def __init__(self, **kwargs):
+            pass
+
+    for client in ['APIClient', 'Client']:
+        if not hasattr(docker, client):
+            setattr(docker, client, MockClient)
+
+    (flexmock(docker)
+        .should_receive('Client')
+        .once()
+        .and_raise(AttributeError))
+
+    (flexmock(docker)
+        .should_receive('APIClient')
+        .once())
+
+    DockerTasker()

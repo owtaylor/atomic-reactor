@@ -499,7 +499,8 @@ def test_get_manifest_digests(tmpdir, image, registry, insecure, creds,
     ('v1', False),
     ('v2', True),
     ('v2', False),
-    ('oci', False)
+    ('oci', False),
+    ('oci_index', False),
 ])
 def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_content_digest,
                                       manifest_type, can_convert_v2_v1):
@@ -559,6 +560,19 @@ def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_conte
                          headers=headers)
 
                 return response
+        elif manifest_type == 'oci_index':
+            if media_type_prefix == 'application/vnd.oci.image.index.v1':
+                digest = 'oci-index-digest'
+            else:
+                headers = {}
+                response_json = {"errors": [{"code": "MANIFEST_UNKNOWN"}]}
+                response = requests.Response()
+                flexmock(response,
+                         status_code=requests.codes.not_found,
+                         content=json.dumps(response_json).encode("utf-8"),
+                         headers=headers)
+
+                return response
 
         headers = {}
         if has_content_type_header:
@@ -600,6 +614,7 @@ def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_conte
             assert actual_digests.v1 is True
         assert actual_digests.v2 is None
         assert actual_digests.oci is None
+        assert actual_digests.oci_index is None
     elif manifest_type == 'v2':
         if can_convert_v2_v1:
             if has_content_type_header:
@@ -616,6 +631,7 @@ def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_conte
         else:
             assert actual_digests.v2 is True
         assert actual_digests.oci is None
+        assert actual_digests.oci_index is None
     elif manifest_type == 'oci':
         assert actual_digests.v1 is None
         assert actual_digests.v2 is None
@@ -623,6 +639,15 @@ def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_conte
             assert actual_digests.oci == 'oci-digest'
         else:
             assert actual_digests.oci is True
+        assert actual_digests.oci_index is None
+    elif manifest_type == 'oci_index':
+        assert actual_digests.v1 is None
+        assert actual_digests.v2 is None
+        assert actual_digests.oci is None
+        if has_content_digest:
+            assert actual_digests.oci_index == 'oci-index-digest'
+        else:
+            assert actual_digests.oci_index is True
 
 
 @responses.activate

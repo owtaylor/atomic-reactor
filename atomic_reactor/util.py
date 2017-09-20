@@ -705,11 +705,12 @@ class RegistrySession(object):
 class ManifestDigest(object):
     """Wrapper for digests for a docker manifest."""
 
-    def __init__(self, v1=None, v2=None, v2_list=None, oci=None):
+    def __init__(self, v1=None, v2=None, v2_list=None, oci=None, oci_index=None):
         self.v1 = v1
         self.v2 = v2
         self.v2_list = v2_list
         self.oci = oci
+        self.oci_index = oci_index
 
     @property
     def default(self):
@@ -721,7 +722,7 @@ class ManifestDigest(object):
         with the registry. An OCI digest will only be present when
         the manifest was pushed as an OCI digest.
         """
-        return self.v2_list or self.oci or self.v2 or self.v1
+        return self.v2_list or self.oci_index or self.oci or self.v2 or self.v1
 
 
 def get_manifest_media_type(version):
@@ -731,6 +732,8 @@ def get_manifest_media_type(version):
         return 'application/vnd.docker.distribution.manifest.list.v2+json'
     elif version == 'oci':
         return 'application/vnd.oci.image.manifest.v1+json'
+    elif version == 'oci_index':
+        return 'application/vnd.oci.image.index.v1+json'
     else:
         raise RuntimeError("Unknown manifest schema type")
 
@@ -764,7 +767,7 @@ def query_registry(registry_session, image, digest=None, version='v1', is_blob=F
 
 
 def get_manifest_digests(image, registry, insecure=False, dockercfg_path=None,
-                         versions=('v1', 'v2', 'v2_list', 'oci'), require_digest=True):
+                         versions=('v1', 'v2', 'v2_list', 'oci', 'oci_index'), require_digest=True):
     """Return manifest digest for image.
 
     :param image: ImageName, the remote image to inspect

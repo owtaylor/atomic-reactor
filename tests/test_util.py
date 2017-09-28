@@ -32,6 +32,7 @@ from atomic_reactor.util import (ImageName, wait_for_command, clone_git_repo,
                                  get_checksums, print_version_of_tools,
                                  get_version_of_tools, get_preferred_label_key,
                                  human_size, CommandResult,
+                                 registry_hostname, Dockercfg, RegistrySession,
                                  get_manifest_digests, ManifestDigest,
                                  get_build_json, is_scratch_build, df_parser,
                                  are_plugins_in_order, LabelFormatter,
@@ -299,6 +300,82 @@ def test_human_size(size_input, expected):
     assert human_size(size_input) == expected
 
 
+@pytest.mark.parametrize(('registry', 'expected'), [
+    ('example.com', 'example.com'),
+    # things that don't look like URIs are left untouched
+    ('example.com/foo', 'example.com/foo'),
+    ('http://example.com', 'example.com'),
+    ('http://example.com:5000', 'example.com:5000'),
+    ('https://example.com:5000', 'example.com:5000'),
+    ('https://example.com/foo', 'example.com')
+])
+def test_registry_hostname(registry, expected):
+    assert registry_hostname(registry) == expected
+
+
+@pytest.mark.parametrize(('in_config', 'lookup', 'expected'), [
+    ('example.com', 'example.com', True),
+    ('example.com', 'https://example.com/v2', True),
+    ('https://example.com/v2', 'https://example.com/v2', True),
+    ('example.com', 'https://example.com/v2', True),
+    ('example.com', 'notexample.com', False),
+])
+def test_dockercfg(tmpdir, in_config, lookup, expected):
+    temp_dir = mkdtemp(dir=str(tmpdir))
+    with open(os.path.join(temp_dir, '.dockercfg'), 'w+') as dockerconfig:
+        dockerconfig.write(json.dumps({
+            in_config: {
+                'username': 'john.doe', 'password': 'letmein'
+            }
+        }))
+    creds = Dockercfg(temp_dir).get_credentials(lookup)
+    found = creds.get('username') == 'john.doe' and creds.get('password') == 'letmein'
+
+    assert found == expected
+
+
+@pytest.mark.parametrize(('registry', 'insecure'), [
+    ('https://example.com', False),
+    ('example.com', True),
+    ('example.com', False),
+])
+@pytest.mark.parametrize(('method', 'responses_method'), [
+    (RegistrySession.get, responses.GET),
+    (RegistrySession.head, responses.HEAD),
+    (RegistrySession.put, responses.PUT),
+    (RegistrySession.delete, responses.DELETE),
+])
+@responses.activate
+def test_registry_session(tmpdir, registry, insecure, method, responses_method):
+    temp_dir = mkdtemp(dir=str(tmpdir))
+    with open(os.path.join(temp_dir, '.dockercfg'), 'w+') as dockerconfig:
+        dockerconfig.write(json.dumps({
+            registry_hostname(registry): {
+                'username': 'john.doe', 'password': 'letmein'
+            }
+        }))
+    session = RegistrySession(registry, insecure=insecure, dockercfg_path=temp_dir)
+
+    path = '/v2/test/image/manifests/latest'
+    if registry.startswith('http'):
+        url = registry + path
+    elif insecure:
+        https_url = 'https://' + registry + path
+        responses.add(responses_method, https_url, body=ConnectionError())
+        url = 'http://' + registry + path
+    else:
+        url = 'https://' + registry + path
+
+    def request_callback(request, all_headers=True):
+        assert request.headers.get('Authorization') is not None
+        return (200, {}, 'A-OK')
+
+    responses.add_callback(responses_method, url, request_callback)
+
+    res = method(session, path)
+    assert res.text == 'A-OK'
+
+
 @pytest.mark.parametrize(('version', 'expected'), [
     ('v1', 'application/vnd.docker.distribution.manifest.v1+json'),
     ('v2', 'application/vnd.docker.distribution.manifest.v2+json'),
@@ -354,7 +431,7 @@ def test_get_manifest_digests(tmpdir, image, registry, insecure, creds,
         temp_dir = mkdtemp(dir=str(tmpdir))
         with open(os.path.join(temp_dir, '.dockercfg'), 'w+') as dockerconfig:
             dockerconfig.write(json.dumps({
-                image.registry: {
+                registry: {
                     'username': creds[0], 'password': creds[1]
                 }
             }))
@@ -442,7 +519,8 @@ def test_get_manifest_digests(tmpdir, image, registry, insecure, creds,
     ('v1', False),
     ('v2', True),
     ('v2', False),
-    ('oci', False)
+    ('oci', False),
+    ('oci_index', False),
 ])
 def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_content_digest,
                                       manifest_type, can_convert_v2_v1):
@@ -502,6 +580,19 @@ def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_conte
                          headers=headers)
 
                 return response
+        elif manifest_type == 'oci_index':
+            if media_type_prefix == 'application/vnd.oci.image.index.v1':
+                digest = 'oci-index-digest'
+            else:
+                headers = {}
+                response_json = {"errors": [{"code": "MANIFEST_UNKNOWN"}]}
+                response = requests.Response()
+                flexmock(response,
+                         status_code=requests.codes.not_found,
+                         content=json.dumps(response_json).encode("utf-8"),
+                         headers=headers)
+
+                return response
 
         headers = {}
         if has_content_type_header:
@@ -543,6 +634,7 @@ def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_conte
             assert actual_digests.v1 is True
         assert actual_digests.v2 is None
         assert actual_digests.oci is None
+        assert actual_digests.oci_index is None
     elif manifest_type == 'v2':
         if can_convert_v2_v1:
             if has_content_type_header:
@@ -559,6 +651,7 @@ def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_conte
         else:
             assert actual_digests.v2 is True
         assert actual_digests.oci is None
+        assert actual_digests.oci_index is None
     elif manifest_type == 'oci':
         assert actual_digests.v1 is None
         assert actual_digests.v2 is None
@@ -566,6 +659,15 @@ def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_conte
             assert actual_digests.oci == 'oci-digest'
         else:
             assert actual_digests.oci is True
+        assert actual_digests.oci_index is None
+    elif manifest_type == 'oci_index':
+        assert actual_digests.v1 is None
+        assert actual_digests.v2 is None
+        assert actual_digests.oci is None
+        if has_content_digest:
+            assert actual_digests.oci_index == 'oci-index-digest'
+        else:
+            assert actual_digests.oci_index is True
 
 
 @responses.activate

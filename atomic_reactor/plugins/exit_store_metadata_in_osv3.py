@@ -193,13 +193,24 @@ class StoreMetadataInOSv3Plugin(ExitPlugin):
         except AttributeError:
             commit_id = ""
 
-        try:
-            base_image_id = self.workflow.base_image_inspect['Id']
-        except KeyError:
+        base_image = self.workflow.builder.base_image
+        if base_image is not None:
+            base_image_name = base_image.to_str()
+            try:
+                base_image_id = self.workflow.base_image_inspect['Id']
+            except KeyError:
+                base_image_id = ""
+        else:
+            base_image_name = ""
             base_image_id = ""
 
+        try:
+            dockerfile_contents = open(self.workflow.builder.df_path).read()
+        except AttributeError:
+            dockerfile_contents = ""
+
         annotations = {
-            "dockerfile": open(self.workflow.builder.df_path).read(),
+            "dockerfile": dockerfile_contents,
 
             # We no longer store the 'docker build' logs as an annotation
             "logs": '',
@@ -210,7 +221,7 @@ class StoreMetadataInOSv3Plugin(ExitPlugin):
             "repositories": json.dumps(self.get_repositories()),
             "commit_id": commit_id,
             "base-image-id": base_image_id,
-            "base-image-name": self.workflow.builder.base_image.to_str(),
+            "base-image-name": base_image_name,
             "image-id": self.workflow.builder.image_id or '',
             "digests": json.dumps(self.get_pullspecs(self.get_digests())),
             "plugins-metadata": json.dumps(self.get_plugin_metadata())

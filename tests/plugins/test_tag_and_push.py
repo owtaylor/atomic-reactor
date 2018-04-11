@@ -19,7 +19,7 @@ from atomic_reactor.plugins.pre_reactor_config import (ReactorConfigPlugin,
                                                        ReactorConfig)
 from atomic_reactor.util import ImageName, ManifestDigest, get_exported_image_metadata
 from tests.constants import LOCALHOST_REGISTRY, TEST_IMAGE, INPUT_IMAGE, MOCK, DOCKER0_REGISTRY
-from tests.fixtures import reactor_config_map  # noqa
+from tests.fixtures import no_retries, reactor_config_map  # noqa
 
 import json
 import logging
@@ -33,7 +33,6 @@ if MOCK:
     import docker
     from flexmock import flexmock
     from tests.docker_mock import mock_docker
-    from tests.retry_mock import mock_get_retry_session
 
 DIGEST_V1 = 'sha256:7de72140ec27a911d3f88d60335f08d6530a4af136f7beab47797a196e840afd'
 DIGEST_V2 = 'sha256:85a7e3fb684787b86e64808c5b91d926afda9d6b35a0642a72d7a746452e71c1'
@@ -107,6 +106,7 @@ class X(object):
     (DOCKER0_REGISTRY + '/' + TEST_IMAGE, PUSH_LOGS_1_10_NOT_IN_STATUS, True, True),
     (TEST_IMAGE, PUSH_ERROR_LOGS, True, False),
 ])
+@pytest.mark.usefixtures("no_retries")
 def test_tag_and_push_plugin(
         tmpdir, monkeypatch, image_name, logs, should_raise, has_config, use_secret,
         reactor_config_map):
@@ -250,8 +250,6 @@ def test_tag_and_push_plugin(
         if url == config_blob_url:
             return config_blob_response
 
-    mock_get_retry_session()
-
     (flexmock(requests.Session)
         .should_receive('request')
         .replace_with(custom_get))
@@ -315,6 +313,7 @@ def test_tag_and_push_plugin(
     False,
     True,
 ])
+@pytest.mark.usefixtures("no_retries")
 def test_tag_and_push_plugin_oci(
         tmpdir, monkeypatch, use_secret, fail_push, caplog, reactor_config_map):
 
@@ -475,8 +474,6 @@ def test_tag_and_push_plugin_oci(
 
         if url == config_blob_url:
             return config_blob_response
-
-    mock_get_retry_session()
 
     (flexmock(requests.Session)
         .should_receive('request')

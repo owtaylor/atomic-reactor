@@ -29,12 +29,12 @@ from atomic_reactor.plugins.pre_reactor_config import (ReactorConfigPlugin,
                                                        ReactorConfig)
 from atomic_reactor.source import VcsInfo
 from atomic_reactor.util import ImageName
+import atomic_reactor.util
 from atomic_reactor.constants import REPO_CONTAINER_CONFIG
 
 from tests.constants import (MOCK_SOURCE, FLATPAK_GIT, FLATPAK_SHA1)
-from tests.fixtures import docker_tasker, reactor_config_map  # noqa
+from tests.fixtures import docker_tasker, reactor_config_map, no_retries  # noqa
 from tests.flatpak import FLATPAK_APP_MODULEMD, FLATPAK_APP_RPMS
-from tests.retry_mock import mock_get_retry_session
 
 
 class MockSource(object):
@@ -113,6 +113,7 @@ def compose_json(state, state_name):
     [MODULE_NSV],
     [MODULE_NSV, 'mod_name2-mod_stream2-mod_version2'],
 ))
+@pytest.mark.usefixtures('no_retries')
 def test_resolve_module_compose(tmpdir, docker_tasker, compose_ids, modules,  # noqa
                                 reactor_config_map):
     secrets_path = os.path.join(str(tmpdir), "secret")
@@ -132,7 +133,6 @@ def test_resolve_module_compose(tmpdir, docker_tasker, compose_ids, modules,  # 
         module = modules[0]
 
     workflow = mock_workflow(tmpdir)
-    mock_get_retry_session()
 
     def handle_composes_post(request):
         assert request.headers['Authorization'] == 'Bearer green_eggs_and_ham'

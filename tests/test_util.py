@@ -52,13 +52,13 @@ from atomic_reactor import util
 from tests.constants import (DOCKERFILE_GIT, DOCKERFILE_SHA1,
                              INPUT_IMAGE, MOCK, MOCK_SOURCE,
                              REACTOR_CONFIG_MAP)
+from tests.fixtures import no_retries  # noqa
 from atomic_reactor.constants import INSPECT_CONFIG
 
 from tests.util import requires_internet
 
 if MOCK:
     from tests.docker_mock import mock_docker
-    from tests.retry_mock import mock_get_retry_session
 
 TEST_DATA = {
     "repository.com/image-name": ImageName(registry="repository.com", repo="image-name"),
@@ -583,6 +583,7 @@ def test_get_manifest_digests(tmpdir, image, registry, insecure, creds,
     ('oci', False),
     ('oci_index', False),
 ])
+@pytest.mark.usefixtures('no_retries')
 def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_content_digest,
                                       manifest_type, can_convert_v2_v1):
     kwargs = {}
@@ -593,8 +594,6 @@ def test_get_manifest_digests_missing(tmpdir, has_content_type_header, has_conte
     kwargs['registry'] = 'https://example.com'
 
     expected_url = 'https://example.com/v2/spam/manifests/latest'
-
-    mock_get_retry_session()
 
     def custom_get(url, headers, **kwargs):
         assert url == expected_url

@@ -22,7 +22,7 @@ from atomic_reactor.plugins.pre_reactor_config import (ReactorConfigPlugin,
                                                        WORKSPACE_CONF_KEY,
                                                        ReactorConfig)
 from tests.constants import LOCALHOST_REGISTRY, DOCKER0_REGISTRY, MOCK, TEST_IMAGE, INPUT_IMAGE
-from tests.fixtures import reactor_config_map  # noqa
+from tests.fixtures import no_retries, reactor_config_map  # noqa
 
 from tempfile import mkdtemp
 import os
@@ -32,7 +32,6 @@ import requests.auth
 
 if MOCK:
     from tests.docker_mock import mock_docker
-    from tests.retry_mock import mock_get_retry_session
 
 DIGEST1 = 'sha256:28b64a8b29fd2723703bb17acf907cd66898440270e536992b937899a4647414'
 DIGEST2 = 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
@@ -71,11 +70,11 @@ class X(object):
     {},
     {'foo/bar': ManifestDigest(v2_list=DIGEST_LIST)}
 ])
+@pytest.mark.usefixtures("no_retries")
 def test_delete_from_registry_plugin(saved_digests, req_registries, tmpdir, orchestrator,
                                      manifest_list_digests, reactor_config_map):
     if MOCK:
         mock_docker()
-        mock_get_retry_session()
 
     buildstep_plugin = None
     if orchestrator:
@@ -192,10 +191,10 @@ def test_delete_from_registry_plugin(saved_digests, req_registries, tmpdir, orch
                                          requests.codes.NOT_FOUND,
                                          requests.codes.METHOD_NOT_ALLOWED,
                                          520])
+@pytest.mark.usefixtures("no_retries")
 def test_delete_from_registry_failures(tmpdir, status_code, reactor_config_map):
     if MOCK:
         mock_docker()
-        mock_get_retry_session()
 
     req_registries = {DOCKER0_REGISTRY: True}
     saved_digests = {DOCKER0_REGISTRY: {'foo/bar:latest': DIGEST1}}

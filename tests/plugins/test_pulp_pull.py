@@ -25,8 +25,6 @@ import responses
 import re
 
 from tests.constants import MOCK
-if MOCK:
-    from tests.retry_mock import mock_get_retry_session
 
 DIGEST_V1 = 'sha256:7de72140ec27a911d3f88d60335f08d6530a4af136f7beab47797a196e840afd'
 DIGEST_V2 = 'sha256:85a7e3fb684787b86e64808c5b91d926afda9d6b35a0642a72d7a746452e71c1'
@@ -70,7 +68,6 @@ class TestPostPulpPull(object):
             }
         }
 
-        mock_get_retry_session()
         builder = flexmock()
         setattr(builder, 'image_id', 'sha256:(old)')
         return flexmock(tag_conf=tag_conf,
@@ -209,6 +206,7 @@ class TestPostPulpPull(object):
           'application/vnd.docker.distribution.manifest.list.v2+json',
           'application/vnd.docker.distribution.manifest.v1+json']),
     ])
+    @pytest.mark.usefixtures('no_retries')
     def test_pull_first_time(self, no_headers, broken_response, insecure, schema_version,
                              pulp_plugin, expected_version):
         workflow = self.workflow()
@@ -286,6 +284,7 @@ class TestPostPulpPull(object):
         (False, True),
         (True, True)
     ])
+    @pytest.mark.usefixtures('no_retries')
     def test_pull_push_vs_sync(self, push, sync):
         workflow = self.workflow(push=push, sync=sync)
         tasker = MockerTasker()
@@ -334,6 +333,7 @@ class TestPostPulpPull(object):
         (0.1, 0.06, 1, True),
         (0.1, 0.06, 3, False),
     ])
+    @pytest.mark.usefixtures('no_retries')
     def test_pull_retry(self, expect_v2schema2, v2, timeout, retry_delay, failures,
                         expect_success, reactor_config):
         workflow = self.workflow(expect_v2schema2)
@@ -424,6 +424,7 @@ class TestPostPulpPull(object):
         media_types = plugin.run()
         assert len(media_types) == 0
 
+    @pytest.mark.usefixtures('no_retries')
     def test_unexpected_response(self):
         workflow = self.workflow()
         tasker = MockerTasker()

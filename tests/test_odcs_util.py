@@ -7,13 +7,13 @@ of the BSD license. See the LICENSE file for details.
 """
 
 from atomic_reactor.odcs_util import ODCSClient
-from tests.retry_mock import mock_get_retry_session
 
 import pytest
 import responses
 import six
 import json
 
+from tests.fixtures import no_retries  # noqa
 
 MODULE_NAME = 'eog'
 MODULE_STREAM = 'f26'
@@ -84,6 +84,7 @@ def compose_json(state, state_name, source_type='module', source=MODULE_NSV,
     ('my-tag', 'tag', ['spam', 'bacon', 'eggs'], ""),
     ('my-tag', 'tag', ['spam', 'bacon', 'eggs'], []),
 ))
+@pytest.mark.usefixtures('no_retries')
 def test_create_compose(odcs_client, source, source_type, packages, sigkeys, arches):
 
     def handle_composes_post(request):
@@ -115,6 +116,7 @@ def test_create_compose(odcs_client, source, source_type, packages, sigkeys, arc
     (2, 'done', False),
     (4, 'failed', True),
 ))
+@pytest.mark.usefixtures('no_retries')
 def test_wait_for_compose(odcs_client, final_state_id, final_state_name, expect_exc):
     state = {'count': 1}
 
@@ -142,6 +144,7 @@ def test_wait_for_compose(odcs_client, final_state_id, final_state_name, expect_
 
 
 @responses.activate
+@pytest.mark.usefixtures('no_retries')
 def test_renew_compose(odcs_client):
     new_compose_id = COMPOSE_ID + 1
 

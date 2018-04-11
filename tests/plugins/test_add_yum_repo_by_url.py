@@ -20,8 +20,8 @@ import pytest
 from flexmock import flexmock
 import os.path
 from tests.constants import DOCKERFILE_GIT, MOCK
+from tests.fixtures import no_retries  # noqa
 if MOCK:
-    from tests.retry_mock import mock_get_retry_session
     from tests.docker_mock import mock_docker
 
 
@@ -48,12 +48,12 @@ def prepare():
         .should_receive('raise_for_status')
         .and_return(None))
     (flexmock(requests.Session, get=lambda *_: requests.Response()))
-    mock_get_retry_session()
 
     return tasker, workflow
 
 
 @pytest.mark.parametrize('inject_proxy', [None, 'http://proxy.example.com'])
+@pytest.mark.usefixtures('no_retries')
 def test_no_repourls(inject_proxy):
     tasker, workflow = prepare()
     runner = PreBuildPluginsRunner(tasker, workflow, [{
@@ -65,6 +65,7 @@ def test_no_repourls(inject_proxy):
 
 
 @pytest.mark.parametrize('inject_proxy', [None, 'http://proxy.example.com'])
+@pytest.mark.usefixtures('no_retries')
 def test_single_repourl(inject_proxy):
     tasker, workflow = prepare()
     url = 'http://example.com/example%20repo.repo'
@@ -83,6 +84,7 @@ def test_single_repourl(inject_proxy):
 
 
 @pytest.mark.parametrize('inject_proxy', [None, 'http://proxy.example.com'])
+@pytest.mark.usefixtures('no_retries')
 def test_multiple_repourls(inject_proxy):
     tasker, workflow = prepare()
     url1 = 'http://example.com/a/b/c/myrepo.repo'

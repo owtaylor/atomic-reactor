@@ -1126,9 +1126,14 @@ class SessionWithTimeout(requests.Session):
         return super(SessionWithTimeout, self).request(*args, **kwargs)
 
 
+_disable_retries = 0
 def get_retrying_requests_session(client_statuses=HTTP_CLIENT_STATUS_RETRY,
                                   times=HTTP_MAX_RETRIES, delay=HTTP_BACKOFF_FACTOR,
                                   method_whitelist=None):
+
+    if _disable_retries:
+        times=0
+
     retry = Retry(
         total=int(times),
         backoff_factor=delay,
@@ -1140,6 +1145,21 @@ def get_retrying_requests_session(client_statuses=HTTP_CLIENT_STATUS_RETRY,
     session.mount('https://', HTTPAdapter(max_retries=retry))
 
     return session
+
+
+def disable_http_retries():
+    """Disable HTTP tries to speed up tests"""
+
+    global _disable_retries
+    _disable_retries += 1
+
+
+def enable_http_retries():
+    """Reenable HTTP retries"""
+
+    global _disable_retries
+    assert _disable_retries > 0
+    _disable_retries -= 1
 
 
 def get_primary_images(workflow):

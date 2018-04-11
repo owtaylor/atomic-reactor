@@ -44,10 +44,9 @@ from atomic_reactor.constants import PLUGIN_ADD_FILESYSTEM_KEY
 from atomic_reactor import koji_util, util
 from tests.constants import (MOCK_SOURCE, DOCKERFILE_GIT, DOCKERFILE_SHA1,
                              MOCK, IMPORTED_IMAGE_ID)
-from tests.fixtures import docker_tasker, reactor_config_map  # noqa
+from tests.fixtures import docker_tasker, no_retries, reactor_config_map  # noqa
 if MOCK:
     from tests.docker_mock import mock_docker
-    from tests.retry_mock import mock_get_retry_session
 
 KOJI_HUB = 'https://koji-hub.com'
 FILESYSTEM_TASK_ID = 1234567
@@ -182,7 +181,6 @@ def mock_workflow(tmpdir, dockerfile):
     df = df_parser(str(tmpdir))
     df.content = dockerfile
     setattr(workflow.builder, 'df_path', df.dockerfile_path)
-    mock_get_retry_session()
 
     return workflow
 
@@ -222,6 +220,7 @@ def make_and_store_reactor_config_map(workflow, additional_koji=None):
 
 
 @pytest.mark.parametrize('scratch', [True, False])
+@pytest.mark.usefixtures('no_retries')
 def test_add_filesystem_plugin_generated(tmpdir, docker_tasker, scratch, reactor_config_map):
     if MOCK:
         mock_docker()
@@ -263,6 +262,7 @@ def test_add_filesystem_plugin_generated(tmpdir, docker_tasker, scratch, reactor
 
 
 @pytest.mark.parametrize('scratch', [True, False])
+@pytest.mark.usefixtures('no_retries')
 def test_add_filesystem_plugin_legacy(tmpdir, docker_tasker, scratch, reactor_config_map):
     if MOCK:
         mock_docker()
@@ -356,6 +356,7 @@ def test_missing_yum_repourls(tmpdir, reactor_config_map):  # noqa
     (False, False),
 ])
 @pytest.mark.parametrize('raise_error', [True, False])
+@pytest.mark.usefixtures('no_retries')
 def test_image_task_failure(tmpdir, build_cancel, error_during_cancel, raise_error, caplog,
                             reactor_config_map):
     if MOCK:
@@ -584,6 +585,7 @@ def test_build_filesystem_from_task_id(tmpdir, prefix, architecture, suffix, rea
     ('x86_64', ['x86_64', 'aarch64'], False),
     (None, None, True),
 ])
+@pytest.mark.usefixtures('no_retries')
 def test_image_download(tmpdir, docker_tasker, architecture, architectures, download_filesystem,
                         reactor_config_map):
     if MOCK:

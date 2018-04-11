@@ -14,7 +14,7 @@ import requests
 import requests.exceptions
 from tests.constants import LOCALHOST_REGISTRY_HTTP, DOCKER0_REGISTRY_HTTP, MOCK
 
-from atomic_reactor.util import ImageName
+from atomic_reactor.util import ImageName, disable_http_retries, enable_http_retries
 from atomic_reactor.core import DockerTasker
 
 if MOCK:
@@ -60,3 +60,10 @@ def docker_tasker():
 @pytest.fixture(params=[True, False])
 def reactor_config_map(request):
     return request.param
+
+
+@pytest.fixture()
+def no_retries(request):
+    disable_http_retries()
+    yield None
+    enable_http_retries()

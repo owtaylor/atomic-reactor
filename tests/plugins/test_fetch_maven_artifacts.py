@@ -38,11 +38,8 @@ from atomic_reactor.plugins.pre_reactor_config import (ReactorConfigPlugin,
                                                        ReactorConfig)
 from atomic_reactor.util import ImageName
 from tests.constants import MOCK_SOURCE, MOCK
-from tests.fixtures import docker_tasker, reactor_config_map  # noqa
+from tests.fixtures import docker_tasker, no_retries, reactor_config_map  # noqa
 from textwrap import dedent
-
-if MOCK:
-    from tests.retry_mock import mock_get_retry_session
 
 KOJI_HUB = 'https://koji-hub.com'
 KOJI_ROOT = 'https://koji-root.com'
@@ -300,7 +297,6 @@ def mock_workflow(tmpdir):
     setattr(workflow, 'builder', X)
     workflow.builder.source = mock_source
     flexmock(workflow, source=mock_source)
-    mock_get_retry_session()
 
     return workflow
 
@@ -379,6 +375,7 @@ def make_and_store_reactor_config_map(workflow, additional=None):
 
 
 @responses.activate  # noqa
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts(tmpdir, docker_tasker, reactor_config_map):
     workflow = mock_workflow(tmpdir)
     mock_koji_session()
@@ -435,6 +432,7 @@ def test_fetch_maven_artifacts(tmpdir, docker_tasker, reactor_config_map):
     ], [ARCHIVE_JAXB_GLASSFISH_JAR, ARCHIVE_JAXB_JAVADOC_GLASSFIX_JAR, ARCHIVE_JAXB_GLASSFISH_POM]),
 ))
 @responses.activate
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_nvr_filtering(tmpdir, docker_tasker, nvr_requests, expected,
                                              reactor_config_map):
     """Test filtering of archives in a Koji build."""
@@ -489,6 +487,7 @@ def test_fetch_maven_artifacts_nvr_filtering(tmpdir, docker_tasker, nvr_requests
     ], 'glassfish.org'),
 ))
 @responses.activate
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_nvr_no_match(tmpdir, docker_tasker, nvr_requests, error_msg,
                                             reactor_config_map):
     """Err when a requested archive is not found in Koji build."""
@@ -517,6 +516,7 @@ def test_fetch_maven_artifacts_nvr_no_match(tmpdir, docker_tasker, nvr_requests,
 
 
 @responses.activate  # noqa
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_nvr_bad_checksum(tmpdir, docker_tasker, reactor_config_map):
     """Err when downloaded archive from Koji build has unexpected checksum."""
     workflow = mock_workflow(tmpdir)
@@ -543,6 +543,7 @@ def test_fetch_maven_artifacts_nvr_bad_checksum(tmpdir, docker_tasker, reactor_c
 
 
 @responses.activate  # noqa
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_nvr_bad_url(tmpdir, docker_tasker, reactor_config_map):
     """Err on download errors for artifact from Koji build."""
     workflow = mock_workflow(tmpdir)
@@ -569,6 +570,7 @@ def test_fetch_maven_artifacts_nvr_bad_url(tmpdir, docker_tasker, reactor_config
 
 
 @responses.activate  # noqa
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_nvr_bad_nvr(tmpdir, docker_tasker, reactor_config_map):
     """Err when given nvr is not a valid build in Koji."""
     workflow = mock_workflow(tmpdir)
@@ -623,6 +625,7 @@ def test_fetch_maven_artifacts_nvr_bad_nvr(tmpdir, docker_tasker, reactor_config
 
 ))
 @responses.activate
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_nvr_schema_error(tmpdir, docker_tasker, contents,
                                                 reactor_config_map):
     """Err on invalid format for fetch-artifacts-koji.yaml"""
@@ -650,6 +653,7 @@ def test_fetch_maven_artifacts_nvr_schema_error(tmpdir, docker_tasker, contents,
 
 
 @responses.activate  # noqa
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_url_with_target(tmpdir, docker_tasker, reactor_config_map):
     """Remote file is downloaded into specified filename."""
     workflow = mock_workflow(tmpdir)
@@ -683,6 +687,7 @@ def test_fetch_maven_artifacts_url_with_target(tmpdir, docker_tasker, reactor_co
 
 
 @responses.activate  # noqa
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_url_bad_checksum(tmpdir, docker_tasker, reactor_config_map):
     """Err when downloaded remote file has unexpected checksum."""
     workflow = mock_workflow(tmpdir)
@@ -709,6 +714,7 @@ def test_fetch_maven_artifacts_url_bad_checksum(tmpdir, docker_tasker, reactor_c
 
 
 @responses.activate  # noqa
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_url_bad_url(tmpdir, docker_tasker, reactor_config_map):
     """Err on download errors for remote file."""
     workflow = mock_workflow(tmpdir)
@@ -767,6 +773,7 @@ def test_fetch_maven_artifacts_url_bad_url(tmpdir, docker_tasker, reactor_config
         """),
 ))
 @responses.activate
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_url_schema_error(tmpdir, docker_tasker, contents,
                                                 reactor_config_map):
     """Err on invalid format for fetch-artifacts-url.yaml"""
@@ -811,6 +818,7 @@ def test_fetch_maven_artifacts_url_schema_error(tmpdir, docker_tasker, contents,
     (['spam.com', 'bacon.bz'], True),
 ))
 @responses.activate
+@pytest.mark.usefixtures('no_retries')
 def test_fetch_maven_artifacts_url_allowed_domains(tmpdir, docker_tasker, domains, raises,
                                                    reactor_config_map):
     """Validate URL domain is allowed when fetching remote file."""
